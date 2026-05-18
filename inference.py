@@ -19,7 +19,7 @@ def predict(text, model, tokenizer, device):
     return predicted_class_id, confidence
 
 
-def run_inference(papers):
+def run_seminar_inference(papers):
     print(f"\n Load base model...")
     wrapper = RobertaAdapterModel()
     model = wrapper.get_model_state()
@@ -43,7 +43,7 @@ def run_inference(papers):
             print(f"\n [START] Starting classification of paper: '{title}' ...")
             predicted_class_id, confidence = predict(paper["abstract"], model, tokenizer, device)
             if predicted_class_id == 1:
-                print(f"✅ Prof. Eggensperger would like this!")
+                print(f"✅ Prof. Eggensperger would like to read this!")
             else:
                 print(f"❌ Given paper seems irrelevant for our seminar.")
         else:
@@ -62,7 +62,38 @@ def paper_in_data(paper, csv_path="data/seminar/seminar.csv"):
     return False
 
 
+def run_sarcasm_adapter(sentences):
+    print(f"\n Load base model...")
+    wrapper = RobertaAdapterModel()
+    model = wrapper.get_model_state()
+    tokenizer = wrapper.tokenizer
+
+    print(f"Load adapters...")
+    adapter_paths = {
+        "sarcasm_adapter": "model/sarcasm_adapter/checkpoint-895/sarcasm_adapter"
+    }
+
+    model.load_adapter(adapter_paths["sarcasm_adapter"])
+    model.active_adapters = "sarcasm_adapter"
+    model.eval()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+
+    print(f"[START] Starting inference for given sentences... \n")
+    for sentence in sentences:
+        predicted_class_id, confidence = predict(sentence, model, tokenizer, device)
+        print(f"[INPUT]: {sentence}")
+        if predicted_class_id == 0:
+            print(f"✅ I can't hear sarcasm! \n")
+        else:
+            print(f"❌ This smells like sarcasm! \n")
+
+
 if __name__ == "__main__":
+
+    """
+        Examples for seminar adapter
+    
     papers = [
         {
             "title": "U-Net: Convolutional Networks for Biomedical Image Segmentation",
@@ -81,4 +112,16 @@ if __name__ == "__main__":
             "abstract": "An important paradigm of natural language processing consists of large-scale pre-training on general domain data and adaptation to particular tasks or domains. As we pre-train larger models, full fine-tuning, which retrains all model parameters, becomes less feasible. Using GPT-3 175B as an example -- deploying independent instances of fine-tuned models, each with 175B parameters, is prohibitively expensive. We propose Low-Rank Adaptation, or LoRA, which freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer of the Transformer architecture, greatly reducing the number of trainable parameters for downstream tasks. Compared to GPT-3 175B fine-tuned with Adam, LoRA can reduce the number of trainable parameters by 10,000 times and the GPU memory requirement by 3 times. LoRA performs on-par or better than fine-tuning in model quality on RoBERTa, DeBERTa, GPT-2, and GPT-3, despite having fewer trainable parameters, a higher training throughput, and, unlike adapters, no additional inference latency. We also provide an empirical investigation into rank-deficiency in language model adaptation, which sheds light on the efficacy of LoRA. We release a package that facilitates the integration of LoRA with PyTorch models and provide our implementations and model checkpoints for RoBERTa, DeBERTa, and GPT-2 at"
         }
     ]
-    run_inference(papers)
+    run_seminar_inference(papers)
+    """
+
+    """
+        Examples for sarcasm adapter
+    """
+    sentences = [
+        "I love doing work and getting nothing out of it.",
+        "Yeah, don't worry about me, I absolutely love standing alone in the freezing cold for two hours.",
+        "The Deutsche Bahn is always on time.",
+        "I like dancing."
+    ]
+    run_sarcasm_adapter(sentences)

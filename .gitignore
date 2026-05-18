@@ -2,3 +2,8 @@
 data/
 scraper.py
 default/
+.idea/
+*.onnx
+*.onnx.data
+__pycache__
+*baselines/
