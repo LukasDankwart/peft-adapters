@@ -5,5 +5,5 @@ default/
 .idea/
 *.onnx
 *.onnx.data
-__pycache__
+__pycache__/
 *baselines/

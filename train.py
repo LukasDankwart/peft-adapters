@@ -1,6 +1,7 @@
 from datasets import load_dataset, ClassLabel
 from transformers import TrainingArguments
 from adapters import AdapterTrainer
+import torch.nn as nn
 
 from model.roberta import RobertaAdapterModel
 from transformers import AutoModelForSequenceClassification, Trainer, TrainingArguments
@@ -9,7 +10,7 @@ from transformers import AutoModelForSequenceClassification, Trainer, TrainingAr
     Code for training the seminar adapter
 """
 
-def train_seminar_adapter(model, adapter_name="seminar_adapter"):
+def train_seminar_adapter(model, adapter_name="seminar_adapter", random_weights=False):
     # Prepare model (adapters) for training
     intern_model = model.get_model_state()
     model.add_adapter_layers(adapter_name=adapter_name)
@@ -36,9 +37,25 @@ def train_seminar_adapter(model, adapter_name="seminar_adapter"):
     test_data_tokenized = test_dataset.map(tokenize_seminar, batched=True)
     print(f"[DONE] Loading train and test data.")
 
+    # If random weights is true, adapter weights are set to be randomly sampled and thereby don't realize identity approximation
+    if random_weights:
+        adapter_cnt = 0
+        for name, param in intern_model.roberta.encoder.named_parameters():
+            if adapter_name in name or "adapter" in name:
+                adapter_cnt += 1
+                # Set weights to random
+                if "weight" in name and param.dim() >= 2:
+                    nn.init.normal_(param, mean=0, std=0.075)
+                    print(f"Weight adapted from: {name}")
+                elif "bias" in name or param.dim() == 1:
+                    nn.init.uniform_(param, a=0, b=0)
+                    print(f"Bias adapted from: {name} \n")
+        adapter_cnt = adapter_cnt / (2 * 2 * 2)  # 2 adapters with 2 projections and 2 params (weights and biases)
+        print(f"Adapter params modified: {adapter_cnt}\n")
+
     # Configure train parameters
     training_args = TrainingArguments(
-        output_dir = "model/seminar_adapter",
+        output_dir = "model/seminar_adapter_random",
         learning_rate=1e-4,
         num_train_epochs=5,
         per_device_train_batch_size=16,
@@ -46,7 +63,6 @@ def train_seminar_adapter(model, adapter_name="seminar_adapter"):
         eval_strategy="epoch",
         save_strategy="epoch"
     )
-
     trainer = AdapterTrainer(
         model=model.get_model_state(),
         args=training_args,
@@ -102,9 +118,9 @@ def train_sarcasm_adapter(model, adapter_name="sarcasm_adapter"):
 
     # Configure train parameters
     training_args = TrainingArguments(
-        output_dir="model/sarcasm_adapter",
+        output_dir="model/sarcasm_adapter_10epochs",
         learning_rate=1e-4,
-        num_train_epochs=5,
+        num_train_epochs=15,
         per_device_train_batch_size=16,
         logging_steps=10,
         eval_strategy="epoch",
@@ -229,17 +245,16 @@ if __name__ == "__main__":
     model = RobertaAdapterModel()
 
     """ Train seminar adapter variant
-    train_seminar_adapter(model)
     """
+    #train_seminar_adapter(model, random_weights=True)
 
-    """ Train sarcasm adapter variant
+    """ Train sarcasm adapter variant """
     train_sarcasm_adapter(model)
-    """
 
     """ Train seminar BASELINE
     train_seminar_baseline()
     """
 
-    """ Train seminar BASELINE 
+    """ Train sarcasm BASELINE 
     """
-    train_sarcasm_baseline()
+    #train_sarcasm_baseline()

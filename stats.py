@@ -1,5 +1,6 @@
 from model.roberta import RobertaAdapterModel
 from adapters import AdapterConfig
+import matplotlib.pyplot as plt
 
 def show_parameter_stats():
     model = RobertaAdapterModel()
@@ -30,7 +31,6 @@ def show_parameter_stats():
     for name, param in intern_model.named_parameters():
         if param.requires_grad and adapter_name not in name:
             print(f"-- {name}: {param.numel():,}")
-    # TODO: Find out why heads are added?
 
 
 def show_houlsby_adapter():
@@ -59,8 +59,86 @@ def show_adapter_injection():
     print(layer_0.output)
 
 
+def plot_loss_ablation():
+    results = [
+        {
+            "name": "0.3",
+            "losses": [
+                0.698498547077179,
+                0.6993235945701599,
+                0.6902828216552734,
+                0.6870179772377014,
+                0.6874886155128479,
+            ]
+        },
+        {
+            "name": "0.1",
+            "losses": [
+                0.6263827085494995,
+                0.5354766845703125,
+                0.5422782301902771,
+                0.4857971966266632,
+                0.4609869420528412,
+            ]
+        },
+        {
+            "name": "0.075",
+            "losses": [
+                0.3769833445549011,
+                0.3074946403503418,
+                0.315958172082901,
+                0.28308001160621643,
+                0.28130096197128296,
+            ]
+        },
+        {
+            "name": "0.05",
+            "losses": [
+                0.2516227960586548,
+                0.2562691867351532,
+                0.28681695461273193,
+                0.26869112253189087,
+                0.27379053831100464,
+            ]
+        },
+        {
+            "name": "no_adapter",
+            "losses": [
+                0.6408296823501587,
+                0.5993636250495911,
+                0.5622190833091736,
+                0.542702436447143,
+                0.5373716354370117,
+            ]
+        }
+    ]
+
+    epochs = [1, 2, 3, 4, 5]
+    plt.figure(figsize=(8, 5))
+    for result in results:
+        name = result["name"]
+        if name == "no_adapter":
+            name = "- No Adapter"
+        else:
+            name = f"Std=" + name
+        losses = result["losses"]
+        print(name)
+        print(losses)
+        plt.plot(epochs, losses, marker='o', label=name)
+    plt.xlabel("Epochs")
+    plt.ylabel("Eval Loss")
+    plt.title("Eval Loss of different parameters initializations")
+    plt.xticks(epochs)
+    plt.ylim(0, 1)
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.tight_layout()
+    plt.savefig(f"loss_ablation.png", dpi=400)
+
+
+
+
 if __name__=="__main__":
     #show_parameter_stats()
     #show_houlsby_adapter()
-    show_adapter_injection()
-    # TODO: Sicherstellen, dass wirklich HOULSBY adapter verwendet wurde!
+    #show_adapter_injection()
+    plot_loss_ablation()
